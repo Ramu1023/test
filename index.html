@@ -7,18 +7,15 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --primary-color: #d946ef; --bg-color: #111827; --card-color: #1f2937; --text-color: #f3f4f6; --gray-color: #9ca3af; }
-        body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; background-color: var(--bg-color); color: var(--text-color); }
+        body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; background-color: var(--bg-color);}
         .page { display: none; padding: 20px; padding-bottom: 80px; }
         .page.active { display: block; }
         .container { max-width: 800px; margin: 0 auto; }
-        /* Modal for setup */
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: var(--card-color); padding: 30px; border-radius: 12px; width: 90%; max-width: 400px; }
-        /* Navigation */
         nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-color); display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.5); }
         nav button { background: none; border: none; color: var(--gray-color); font-size: 16px; padding: 10px; cursor: pointer; }
         nav button.active { color: var(--primary-color); }
-        /* General Styles */
         h1, h2 { color: white; }
         .card { background-color: var(--card-color); padding: 20px; border-radius: 12px; margin-bottom: 20px; }
         .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
@@ -108,6 +105,7 @@
                 <select id="profileGender">
                     <option value="Female">Female</option>
                     <option value="Male">Male</option>
+                    <option value="Other">Other</option>
                 </select>
                 <button class="btn" onclick="updateProfile()">Update Profile</button>
             </div>
@@ -136,8 +134,8 @@
     
 <script>
     // --- USER CONFIGURATION ---
-    const SUPABASE_URL = 'https://cubnpddinqtubsptdipi.supabase.co'; // Paste your Project URL here
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN1Ym5wZGRpbnF0dWJzcHRkaXBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4NDA2MDMsImV4cCI6MjA3MTQxNjYwM30.Gy4XS-Br-DO8nl4Wq_qHhp2A9gd38raRvTokuqdfKqo';   // Paste your Anon Key here
+    const SUPABASE_URL = 'https://cubnpddinqtubsptdipi.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN1Ym5wZGRpbnF0dWJzcHRkaXBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4NDA2MDMsImV4cCI6MjA3MTQxNjYwM30.Gy4XS-Br-2eUo7M1cEdcHiQX5E89nPZyZQ2cX1ZQ8dE';
     // -------------------------
 
     const { createClient } = supabase;
@@ -152,15 +150,17 @@
         pages.forEach(p => p.classList.remove('active'));
         navButtons.forEach(b => b.classList.remove('active'));
         document.getElementById(pageId).classList.add('active');
-        document.getElementById(nav${pageId.charAt(0).toUpperCase() + pageId.slice(1)}).classList.add('active');
+        document.getElementById('nav' + pageId.charAt(0).toUpperCase() + pageId.slice(1)).classList.add('active');
     }
 
     // --- INITIALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
         if (!userProfileId) {
             document.getElementById('setupModal').style.display = 'flex';
+            showPage('home'); // Optionally set the Home page as default background
         } else {
             document.getElementById('setupModal').style.display = 'none';
+            showPage('home');
             initializeApp();
         }
     });
@@ -192,22 +192,23 @@
         // 3. Save the new ID locally and initialize the app
         userProfileId = data.id;
         localStorage.setItem('userProfileId', userProfileId);
-        alert(Setup complete! Your unique Profile ID is: ${userProfileId}\n\nIMPORTANT: Copy this ID and paste it into your ESP32 code.);
+        alert(`Setup complete! Your unique Profile ID is: ${userProfileId}\n\nIMPORTANT: Copy this ID and paste it into your ESP32 code.`);
         document.getElementById('setupModal').style.display = 'none';
+        showPage('home');
         initializeApp();
     }
     
     function initializeApp(){
         fetchAndDisplayStatus();
         loadSettingsPage();
-        setInterval(fetchAndDisplayStatus, 5000); // Refresh data every 5 seconds
+        setInterval(fetchAndDisplayStatus, 5000);
         
         // Mobile Battery API
         if('getBattery' in navigator){
             navigator.getBattery().then(function(battery) {
-                document.getElementById('mobileBattery').textContent = ${Math.floor(battery.level * 100)}%;
+                document.getElementById('mobileBattery').textContent = `${Math.floor(battery.level * 100)}%`;
                 battery.addEventListener('levelchange', function() {
-                    document.getElementById('mobileBattery').textContent = ${Math.floor(battery.level * 100)}%;
+                    document.getElementById('mobileBattery').textContent = `${Math.floor(battery.level * 100)}%`;
                 });
             });
         }
@@ -223,18 +224,18 @@
         // Home Page
         const emergencyStatus = document.getElementById('emergencyStatus');
         emergencyStatus.textContent = data.emergency_active ? 'ON' : 'OFF';
-        emergencyStatus.className = status-value ${data.emergency_active ? 'on' : 'off'};
+        emergencyStatus.className = `status-value ${data.emergency_active ? 'on' : 'off'}`;
         
         const pin27 = document.getElementById('pin27Status');
         pin27.textContent = data.pin27_status ? 'ON' : 'OFF';
-        pin27.className = status-value ${data.pin27_status ? 'on' : 'off'};
+        pin27.className = `status-value ${data.pin27_status ? 'on' : 'off'}`;
 
         const pin28 = document.getElementById('pin28Status');
         pin28.textContent = data.pin28_status ? 'ON' : 'OFF';
-        pin28.className = status-value ${data.pin28_status ? 'on' : 'off'};
+        pin28.className = `status-value ${data.pin28_status ? 'on' : 'off'}`;
 
-        document.getElementById('watchBattery').textContent = ${data.watch_battery || '--'}%;
-        document.getElementById('shoeBattery').textContent = ${data.shoe_battery || '--'}%;
+        document.getElementById('watchBattery').textContent = `${data.watch_battery || '--'}%`;
+        document.getElementById('shoeBattery').textContent = `${data.shoe_battery || '--'}%`;
         
         // Location Page
         const gpsLink = document.getElementById('gpsLink');
@@ -246,8 +247,10 @@
                 const coords = data.gps_location.split('@')[1].split(',');
                 const lat = coords[0];
                 const lon = coords[1];
-                document.getElementById('map').innerHTML = <iframe width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://www.openstreetmap.org/export/embed.html?bbox=${lon}%2C${lat}%2C${lon}%2C${lat}&amp;layer=mapnik&amp;marker=${lat}%2C${lon}" style="border: 1px solid black; border-radius: 8px;"></iframe>;
+                document.getElementById('map').innerHTML = `<iframe width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://www.openstreetmap.org/export/embed.html?bbox=${lon-0.003},${lat-0.003},${lon+0.003},${lat+0.003}&layer=mapnik&marker=${lat},${lon}" style="border-radius:8px;"></iframe>`;
             } catch(e) { /* silent fail if URL format is unexpected */ }
+        } else {
+            document.getElementById('map').innerHTML = '';
         }
 
         // Menstrual status
@@ -257,7 +260,7 @@
             const today = new Date();
             const diffTime = Math.abs(today - lastDate);
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-            document.getElementById('menstrualStatus').textContent = Day ${diffDays};
+            document.getElementById('menstrualStatus').textContent = `Day ${diffDays}`;
         } else {
              document.getElementById('menstrualStatus').textContent = 'Not Set';
         }
@@ -272,8 +275,8 @@
             document.getElementById('profileName').value = data.user_name;
             document.getElementById('profileAge').value = data.age;
             document.getElementById('profileGender').value = data.gender;
-            document.getElementById('menstrualDate').value = data.menstrual_last_start;
-            document.getElementById('menstrualNotes').value = data.menstrual_notes;
+            document.getElementById('menstrualDate').value = data.menstrual_last_start || '';
+            document.getElementById('menstrualNotes').value = data.menstrual_notes || '';
         }
         // Load contacts
         await loadContacts();
@@ -286,7 +289,8 @@
             gender: document.getElementById('profileGender').value
         }).eq('id', userProfileId);
 
-        if(error) alert('Error updating profile.'); else alert('Profile updated!');
+        if(error) alert('Error updating profile.');
+        else alert('Profile updated!');
     }
 
     async function loadContacts(){
@@ -318,7 +322,8 @@
             menstrual_last_start: document.getElementById('menstrualDate').value,
             menstrual_notes: document.getElementById('menstrualNotes').value
         }).eq('id', userProfileId);
-        if(error) alert('Error updating data.'); else alert('Cycle info saved!');
+        if(error) alert('Error updating data.');
+        else alert('Cycle info saved!');
     }
 
 </script>
