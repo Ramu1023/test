@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safety Device Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary-color: #d946ef; --bg-color: #111827; --card-color: #1f2937; --text-color: #f3f4f6; --gray-color: #9ca3af; }
+        body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; background-color: var(--bg-color); color: var(--text-color); }
+        .page { display: none; padding: 20px; padding-bottom: 80px; }
+        .page.active { display: block; }
+        .container { max-width: 800px; margin: 0 auto; }
+        /* Modal for setup */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: var(--card-color); padding: 30px; border-radius: 12px; width: 90%; max-width: 400px; }
+        /* Navigation */
+        nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-color); display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.5); }
+        nav button { background: none; border: none; color: var(--gray-color); font-size: 16px; padding: 10px; cursor: pointer; }
+        nav button.active { color: var(--primary-color); }
+        /* General Styles */
+        h1, h2 { color: white; }
+        .card { background-color: var(--card-color); padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .status-item { background-color: #374151; padding: 15px; border-radius: 8px; text-align: center; }
+        .status-item span { display: block; font-size: 0.9em; color: var(--gray-color); margin-bottom: 5px; }
+        .status-value { font-size: 1.2em; font-weight: bold; }
+        .status-value.on { color: #4ade80; }
+        .status-value.off { color: #f87171; }
+        input, textarea, select { width: 100%; padding: 12px; background-color: #374151; border: 1px solid #4b5563; border-radius: 8px; color: var(--text-color); box-sizing: border-box; margin-top: 5px; }
+        .btn { background-color: var(--primary-color); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 16px; cursor: pointer; width: 100%; margin-top: 15px; }
+        .emergency-btn { background-color: #dc2626; padding: 20px; font-size: 24px; font-weight: bold; width: 100%; border: none; color: white; border-radius: 12px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <div id="setupModal" class="modal">
+        <div class="modal-content">
+            <h2>Welcome! Let's get you set up.</h2>
+            <input type="text" id="userNameInput" placeholder="Your Name" required>
+            <input type="number" id="ageInput" placeholder="Your Age" required>
+            <select id="genderInput">
+                <option value="Female">Female</option>
+                <option value="Male">Male</option>
+                <option value="Other">Other</option>
+            </select>
+            <button class="btn" onclick="handleInitialSetup()">Save & Start</button>
+        </div>
+    </div>
+
+    <div id="home" class="page active">
+        <div class="container">
+            <button class="emergency-btn">EMERGENCY</button>
+            <div class="card">
+                <h2>Live Status</h2>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span>Emergency Mode</span>
+                        <div id="emergencyStatus" class="status-value off">OFF</div>
+                    </div>
+                    <div class="status-item">
+                        <span>Pin 27</span>
+                        <div id="pin27Status" class="status-value off">OFF</div>
+                    </div>
+                    <div class="status-item">
+                        <span>Pin 28</span>
+                        <div id="pin28Status" class="status-value off">OFF</div>
+                    </div>
+                     <div class="status-item">
+                        <span>Menstrual Cycle</span>
+                        <div id="menstrualStatus" class="status-value">--</div>
+                    </div>
+                    <div class="status-item">
+                        <span>Watch Battery</span>
+                        <div id="watchBattery" class="status-value">--%</div>
+                    </div>
+                    <div class="status-item">
+                        <span>Shoe Battery</span>
+                        <div id="shoeBattery" class="status-value">--%</div>
+                    </div>
+                     <div class="status-item">
+                        <span>Mobile Battery</span>
+                        <div id="mobileBattery" class="status-value">--%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="location" class="page">
+        <div class="container">
+            <h1>Current Location</h1>
+            <div class="card">
+                <p>Last known location from device:</p>
+                <a id="gpsLink" href="#" target="_blank">Fetching location...</a>
+                <div id="map" style="width: 100%; height: 400px; background: #333; border-radius: 8px; margin-top: 15px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings" class="page">
+        <div class="container">
+            <h1>Settings</h1>
+            <div class="card">
+                <h2>My Profile</h2>
+                <input type="text" id="profileName" placeholder="Name">
+                <input type="number" id="profileAge" placeholder="Age">
+                <select id="profileGender">
+                    <option value="Female">Female</option>
+                    <option value="Male">Male</option>
+                </select>
+                <button class="btn" onclick="updateProfile()">Update Profile</button>
+            </div>
+            <div class="card">
+                <h2>Emergency Contacts</h2>
+                <div id="contactsList"></div>
+                <input type="tel" id="newContactInput" placeholder="+91...">
+                <button class="btn" onclick="addContact()">Add New Contact</button>
+            </div>
+            <div class="card">
+                <h2>Menstrual Cycle</h2>
+                <p>Last Period Start Date:</p>
+                <input type="date" id="menstrualDate">
+                <p>Notes:</p>
+                <textarea id="menstrualNotes" rows="4"></textarea>
+                <button class="btn" onclick="updateMenstrualData()">Save Cycle Info</button>
+            </div>
+        </div>
+    </div>
+
+    <nav>
+        <button id="navHome" class="active" onclick="showPage('home')">Home</button>
+        <button id="navLocation" onclick="showPage('location')">Location</button>
+        <button id="navSettings" onclick="showPage('settings')">Settings</button>
+    </nav>
+    
+<script>
+    // --- USER CONFIGURATION ---
+    const SUPABASE_URL = 'https://cubnpddinqtubsptdipi.supabase.co'; // Paste your Project URL here
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN1Ym5wZGRpbnF0dWJzcHRkaXBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU4NDA2MDMsImV4cCI6MjA3MTQxNjYwM30.Gy4XS-Br-DO8nl4Wq_qHhp2A9gd38raRvTokuqdfKqo';   // Paste your Anon Key here
+    // -------------------------
+
+    const { createClient } = supabase;
+    const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let userProfileId = localStorage.getItem('userProfileId');
+
+    // --- PAGE NAVIGATION ---
+    const pages = document.querySelectorAll('.page');
+    const navButtons = document.querySelectorAll('nav button');
+    function showPage(pageId) {
+        pages.forEach(p => p.classList.remove('active'));
+        navButtons.forEach(b => b.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
+        document.getElementById(nav${pageId.charAt(0).toUpperCase() + pageId.slice(1)}).classList.add('active');
+    }
+
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!userProfileId) {
+            document.getElementById('setupModal').style.display = 'flex';
+        } else {
+            document.getElementById('setupModal').style.display = 'none';
+            initializeApp();
+        }
+    });
+
+    async function handleInitialSetup() {
+        const userName = document.getElementById('userNameInput').value;
+        const age = document.getElementById('ageInput').value;
+        const gender = document.getElementById('genderInput').value;
+        if (!userName || !age) {
+            alert('Please fill in all fields.');
+            return;
+        }
+
+        // 1. Create a new user profile in Supabase
+        const { data, error } = await db.from('profiles').insert([{ user_name: userName, age: age, gender: gender }]).select().single();
+        
+        if (error) {
+            console.error('Error creating profile:', error);
+            alert('Could not create profile. Check console.');
+            return;
+        }
+        
+        // 2. Create a corresponding device_status row
+        const { error: statusError } = await db.from('device_status').insert([{ id: data.id }]);
+        if(statusError){
+            console.error('Error creating device status:', statusError);
+        }
+
+        // 3. Save the new ID locally and initialize the app
+        userProfileId = data.id;
+        localStorage.setItem('userProfileId', userProfileId);
+        alert(Setup complete! Your unique Profile ID is: ${userProfileId}\n\nIMPORTANT: Copy this ID and paste it into your ESP32 code.);
+        document.getElementById('setupModal').style.display = 'none';
+        initializeApp();
+    }
+    
+    function initializeApp(){
+        fetchAndDisplayStatus();
+        loadSettingsPage();
+        setInterval(fetchAndDisplayStatus, 5000); // Refresh data every 5 seconds
+        
+        // Mobile Battery API
+        if('getBattery' in navigator){
+            navigator.getBattery().then(function(battery) {
+                document.getElementById('mobileBattery').textContent = ${Math.floor(battery.level * 100)}%;
+                battery.addEventListener('levelchange', function() {
+                    document.getElementById('mobileBattery').textContent = ${Math.floor(battery.level * 100)}%;
+                });
+            });
+        }
+    }
+    
+    // --- DATA FETCHING AND DISPLAY ---
+    async function fetchAndDisplayStatus(){
+        if (!userProfileId) return;
+
+        const { data, error } = await db.from('device_status').select('*').eq('id', userProfileId).single();
+        if(error || !data) { console.error("Error fetching status:", error); return; }
+
+        // Home Page
+        const emergencyStatus = document.getElementById('emergencyStatus');
+        emergencyStatus.textContent = data.emergency_active ? 'ON' : 'OFF';
+        emergencyStatus.className = status-value ${data.emergency_active ? 'on' : 'off'};
+        
+        const pin27 = document.getElementById('pin27Status');
+        pin27.textContent = data.pin27_status ? 'ON' : 'OFF';
+        pin27.className = status-value ${data.pin27_status ? 'on' : 'off'};
+
+        const pin28 = document.getElementById('pin28Status');
+        pin28.textContent = data.pin28_status ? 'ON' : 'OFF';
+        pin28.className = status-value ${data.pin28_status ? 'on' : 'off'};
+
+        document.getElementById('watchBattery').textContent = ${data.watch_battery || '--'}%;
+        document.getElementById('shoeBattery').textContent = ${data.shoe_battery || '--'}%;
+        
+        // Location Page
+        const gpsLink = document.getElementById('gpsLink');
+        gpsLink.textContent = data.gps_location || "Not available";
+        if(data.gps_location && data.gps_location.startsWith("http")){
+            gpsLink.href = data.gps_location;
+            // Basic map update - extract coords and show in OpenStreetMap iframe
+            try {
+                const coords = data.gps_location.split('@')[1].split(',');
+                const lat = coords[0];
+                const lon = coords[1];
+                document.getElementById('map').innerHTML = <iframe width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://www.openstreetmap.org/export/embed.html?bbox=${lon}%2C${lat}%2C${lon}%2C${lat}&amp;layer=mapnik&amp;marker=${lat}%2C${lon}" style="border: 1px solid black; border-radius: 8px;"></iframe>;
+            } catch(e) { /* silent fail if URL format is unexpected */ }
+        }
+
+        // Menstrual status
+        const {data: profileData, error: profileError} = await db.from('profiles').select('menstrual_last_start').eq('id', userProfileId).single();
+        if(profileData && profileData.menstrual_last_start){
+            const lastDate = new Date(profileData.menstrual_last_start);
+            const today = new Date();
+            const diffTime = Math.abs(today - lastDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            document.getElementById('menstrualStatus').textContent = Day ${diffDays};
+        } else {
+             document.getElementById('menstrualStatus').textContent = 'Not Set';
+        }
+    }
+    
+    // --- SETTINGS PAGE LOGIC ---
+    async function loadSettingsPage(){
+        if (!userProfileId) return;
+        // Load profile
+        const { data, error } = await db.from('profiles').select('*').eq('id', userProfileId).single();
+        if(data){
+            document.getElementById('profileName').value = data.user_name;
+            document.getElementById('profileAge').value = data.age;
+            document.getElementById('profileGender').value = data.gender;
+            document.getElementById('menstrualDate').value = data.menstrual_last_start;
+            document.getElementById('menstrualNotes').value = data.menstrual_notes;
+        }
+        // Load contacts
+        await loadContacts();
+    }
+
+    async function updateProfile(){
+        const { error } = await db.from('profiles').update({ 
+            user_name: document.getElementById('profileName').value,
+            age: document.getElementById('profileAge').value,
+            gender: document.getElementById('profileGender').value
+        }).eq('id', userProfileId);
+
+        if(error) alert('Error updating profile.'); else alert('Profile updated!');
+    }
+
+    async function loadContacts(){
+        const contactsListDiv = document.getElementById('contactsList');
+        contactsListDiv.innerHTML = '';
+        const { data, error } = await db.from('emergency_contacts').select('*').eq('profile_id', userProfileId);
+        if(data){
+            data.forEach(contact => {
+                const p = document.createElement('p');
+                p.textContent = contact.contact_number;
+                contactsListDiv.appendChild(p);
+            });
+        }
+    }
+
+    async function addContact(){
+        const number = document.getElementById('newContactInput').value;
+        if(!number) return;
+        const { error } = await db.from('emergency_contacts').insert([{ profile_id: userProfileId, contact_number: number }]);
+        if(error) alert('Error adding contact.');
+        else {
+            document.getElementById('newContactInput').value = '';
+            await loadContacts();
+        }
+    }
+
+    async function updateMenstrualData(){
+         const { error } = await db.from('profiles').update({ 
+            menstrual_last_start: document.getElementById('menstrualDate').value,
+            menstrual_notes: document.getElementById('menstrualNotes').value
+        }).eq('id', userProfileId);
+        if(error) alert('Error updating data.'); else alert('Cycle info saved!');
+    }
+
+</script>
+</body>
+</html>
